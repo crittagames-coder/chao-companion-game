@@ -10,14 +10,21 @@ namespace ChaoCompanion.AI
     {
         [SerializeField] private TouchGestureDetector gestureDetector;
         [SerializeField] private CompanionNeeds needs;
+        [SerializeField] private CompanionMotionController motionController;
 
         public string LastReaction { get; private set; } = "Idle";
+        public CompanionInteractionType LastInteractionType { get; private set; } = CompanionInteractionType.Tap;
 
         private void Awake()
         {
             if (needs == null)
             {
                 needs = GetComponent<CompanionNeeds>();
+            }
+
+            if (motionController == null)
+            {
+                motionController = GetComponent<CompanionMotionController>();
             }
         }
 
@@ -40,6 +47,7 @@ namespace ChaoCompanion.AI
         private void HandleInteraction(CompanionInteraction interaction)
         {
             CompanionStats stats = needs.Stats;
+            LastInteractionType = interaction.Type;
 
             switch (interaction.Type)
             {
@@ -78,6 +86,11 @@ namespace ChaoCompanion.AI
                     stats.AddHappiness(2f);
                     LastReaction = "Petted";
                     break;
+            }
+
+            if (motionController != null)
+            {
+                motionController.React(interaction, LastReaction);
             }
 
             Debug.Log($"Companion reaction: {LastReaction} | Mood: {stats.Mood}");

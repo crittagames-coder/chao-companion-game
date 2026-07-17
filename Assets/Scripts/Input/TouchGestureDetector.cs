@@ -9,9 +9,17 @@ namespace ChaoCompanion.Input
 {
     public class TouchGestureDetector : MonoBehaviour
     {
+        [Header("Target")]
+        [SerializeField] private Camera worldCamera;
+        [SerializeField] private Collider2D targetCollider;
+        [SerializeField] private bool requireTargetTouch = true;
+
+        [Header("Timing")]
         [SerializeField] private float tapMaxDuration = 0.25f;
         [SerializeField] private float doubleTapMaxGap = 0.3f;
         [SerializeField] private float longPressMinDuration = 0.65f;
+
+        [Header("Distance")]
         [SerializeField] private float swipeMinDistance = 120f;
         [SerializeField] private float dragMinDistance = 24f;
         [SerializeField] private float rubMinTotalDistance = 220f;
@@ -24,6 +32,15 @@ namespace ChaoCompanion.Input
         private float lastTapTime = -10f;
         private float totalDragDistance;
         private bool dragging;
+        private bool gestureActive;
+
+        public Camera WorldCamera => worldCamera;
+
+        public void SetTarget(Collider2D collider, Camera camera)
+        {
+            targetCollider = collider;
+            worldCamera = camera;
+        }
 
         private void OnEnable()
         {
@@ -90,6 +107,12 @@ namespace ChaoCompanion.Input
 
         private void BeginGesture(Vector2 position)
         {
+            gestureActive = CanStartGesture(position);
+            if (!gestureActive)
+            {
+                return;
+            }
+
             startPosition = position;
             lastPosition = position;
             startTime = Time.unscaledTime;
@@ -99,6 +122,11 @@ namespace ChaoCompanion.Input
 
         private void MoveGesture(Vector2 position)
         {
+            if (!gestureActive)
+            {
+                return;
+            }
+
             Vector2 step = position - lastPosition;
             totalDragDistance += step.magnitude;
             lastPosition = position;
@@ -114,6 +142,13 @@ namespace ChaoCompanion.Input
 
         private void EndGesture(Vector2 position)
         {
+            if (!gestureActive)
+            {
+                return;
+            }
+
+            gestureActive = false;
+
             float duration = Time.unscaledTime - startTime;
             Vector2 delta = position - startPosition;
             float distance = delta.magnitude;
@@ -147,6 +182,28 @@ namespace ChaoCompanion.Input
         private void Emit(CompanionInteractionType type, Vector2 position, Vector2 delta, float duration, float intensity)
         {
             InteractionDetected?.Invoke(new CompanionInteraction(type, position, delta, duration, intensity));
+        }
+
+        private bool CanStartGesture(Vector2 screenPosition)
+        {
+            if (!requireTargetTouch)
+            {
+                return true;
+            }
+
+            if (targetCollider == null)
+            {
+                return false;
+            }
+
+            Camera cameraToUse = worldCamera != null ? worldCamera : Camera.main;
+            if (cameraToUse == null)
+            {
+                return false;
+            }
+
+            Vector3 worldPoint = cameraToUse.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, -cameraToUse.transform.position.z));
+            return targetCollider.OverlapPoint(worldPoint);
         }
     }
 }
